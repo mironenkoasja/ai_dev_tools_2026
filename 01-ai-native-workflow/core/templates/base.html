@@ -1,0 +1,39 @@
+{% load static %}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Household Chores{% endblock %}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link href="{% static 'core/style.css' %}" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.js" integrity="sha384-Q+Dky3iHVJOr6wUjQ4ulh6uQ76an/t+ak1+PjMVaxRjbZamFLAG+u9InkfjbsEQf" crossorigin="anonymous" defer></script>
+</head>
+<body class="bg-body-tertiary">
+    <a class="visually-hidden-focusable" href="#main-content">Skip to content</a>
+    <header class="bg-white border-bottom">
+        <nav class="container py-3 d-flex flex-wrap align-items-center gap-3" aria-label="Main navigation">
+            <a class="fw-bold text-dark text-decoration-none fs-5 me-auto" href="{% url 'core:home' %}">Household Chores</a>
+            {% if user.is_authenticated %}
+            <ul class="nav nav-pills gap-1">
+                <li class="nav-item"><a class="nav-link{% if request.resolver_match.url_name == 'home' %} active{% endif %}" {% if request.resolver_match.url_name == 'home' %}aria-current="page"{% endif %} href="{% url 'core:home' %}">Board</a></li>
+                <li class="nav-item"><a class="nav-link{% if request.resolver_match.url_name == 'history' %} active{% endif %}" {% if request.resolver_match.url_name == 'history' %}aria-current="page"{% endif %} href="{% url 'core:history' %}">History</a></li>
+                <li class="nav-item"><a class="nav-link{% if request.resolver_match.url_name == 'categories' %} active{% endif %}" {% if request.resolver_match.url_name == 'categories' %}aria-current="page"{% endif %} href="{% url 'core:categories' %}">Categories</a></li>
+                {% if user.is_staff %}<li class="nav-item"><a class="nav-link" href="{% url 'admin:index' %}">Admin</a></li>{% endif %}
+            </ul>
+            <span class="text-body-secondary text-break">{{ user.get_username }}</span>
+            <form method="post" action="{% url 'logout' %}">
+                {% csrf_token %}
+                <button class="btn btn-outline-secondary btn-sm" type="submit">Log out</button>
+            </form>
+            {% endif %}
+        </nav>
+    </header>
+    <main id="main-content" class="container py-5" tabindex="-1">
+        {% for message in messages %}
+        <div class="alert alert-info" role="status">{{ message }}</div>
+        {% endfor %}
+        {% block content %}{% endblock %}
+    </main>
+</body>
+</html>

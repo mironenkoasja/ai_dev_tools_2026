@@ -303,7 +303,7 @@ The homework does **not** include:
 - REST API;
 - Django REST Framework;
 - React, Vue, or another SPA framework;
-- automated tests;
+- automated tests beyond the three core authentication scenarios (protected-page redirects, successful login, and logout);
 - production deployment.
 
 ---
