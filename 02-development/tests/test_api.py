@@ -4,6 +4,7 @@ import unittest
 from datetime import date
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "fairshare.settings")
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
 from django.test import Client, SimpleTestCase
 

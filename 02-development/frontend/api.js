@@ -1,6 +1,7 @@
 /* The single frontend/backend seam. Set window.FAIRSHARE_API_URL for another backend host. */
 const FairShareAPI = (() => {
-  const API_URL = window.FAIRSHARE_API_URL || 'http://127.0.0.1:8000/api';
+  const backendHost = window.FAIRSHARE_API_HOST || window.location.hostname || '127.0.0.1';
+  const API_URL = window.FAIRSHARE_API_URL || `http://${backendHost}:8000/api`;
   let csrfToken = '';
 
   const readError = async response => {

@@ -61,7 +61,7 @@ Open the application at:
 http://127.0.0.1:8001/
 ```
 
-The frontend calls the backend at `http://127.0.0.1:8000/api` through `frontend/api.js`. The backend allows the local frontend origin and handles session cookies and CSRF tokens.
+The frontend calls the backend on port `8000` through `frontend/api.js`, using the same hostname as the page (`localhost` or `127.0.0.1`). Keep the hostname consistent in the browser URL and backend URL so session and CSRF cookies work correctly. The backend allows the local frontend origin and handles session cookies and CSRF tokens.
 
 ## Demo login
 
@@ -95,9 +95,27 @@ Run Django's system check with:
 & ..\.tools\uv\uv.exe run python manage.py check
 ```
 
-## Mock database
+## Database
 
-The backend currently uses an in-memory repository in `api/repository.py`. Data is cleared whenever the Django server restarts. This repository is deliberately isolated so it can later be replaced by Django models and SQLite without changing the API views or frontend contract.
+The backend uses SQLAlchemy through the repository in `api/repository.py`. Local development defaults to a real SQLite database at:
+
+```text
+fairshare.sqlite3
+```
+
+The SQLAlchemy models and repository are database-agnostic. Change the `DATABASE_URL` environment variable to use another SQLAlchemy-supported database without changing the API views or frontend contract. For example:
+
+```powershell
+$env:DATABASE_URL = "sqlite:///fairshare.sqlite3"
+```
+
+For PostgreSQL, install the appropriate SQLAlchemy driver and use a URL such as:
+
+```text
+postgresql+psycopg://user:password@localhost/fairshare
+```
+
+Endpoint tests set `DATABASE_URL=sqlite:///:memory:` so test data is isolated from the local development database.
 
 ## Stopping the servers
 

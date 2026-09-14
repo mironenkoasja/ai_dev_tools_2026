@@ -130,7 +130,7 @@ def create_user(username, password, name):
         errors["password"] = ["This field is required."]
     if not name:
         errors["name"] = ["This field is required."]
-    if username in repository.USERS:
+    if repository.get_user(username):
         errors["username"] = ["A user with that username already exists."]
     if errors:
         raise ValidationFailure(errors)
