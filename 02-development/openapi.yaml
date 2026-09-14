@@ -1,0 +1,468 @@
+openapi: 3.0.3
+info:
+  title: FairShare API
+  version: 1.0.0
+  description: |
+    API contract for FairShare, a local expense-splitting application.
+    The API uses Django sessions for authentication and JSON for request and
+    response bodies. Currency is always EUR.
+servers:
+  - url: http://localhost:8000
+    description: Local development server
+tags:
+  - name: Authentication
+    description: Registration and Django session management
+  - name: Expenses
+    description: Owner-scoped shared expense operations
+paths:
+  /api/auth/register/:
+    post:
+      tags: [Authentication]
+      summary: Register a user
+      operationId: registerUser
+      description: Creates a user, hashes the password, and starts an authenticated session.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered and logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/auth/login/:
+    post:
+      tags: [Authentication]
+      summary: Log in
+      operationId: loginUser
+      description: Authenticates a user and establishes a Django session.
+      security: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/auth/csrf/:
+    get:
+      tags: [Authentication]
+      summary: Get a CSRF token
+      operationId: getCsrfToken
+      description: Returns a CSRF token and sets the Django CSRF cookie for browser clients before state-changing requests.
+      security: []
+      responses:
+        '200':
+          description: CSRF token initialized
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [csrfToken]
+                properties:
+                  csrfToken:
+                    type: string
+                    example: zL2wTnq8H5xK9pQ3
+
+  /api/auth/me/:
+    get:
+      tags: [Authentication]
+      summary: Get the current user
+      operationId: getCurrentUser
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Current authenticated user
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/logout/:
+    post:
+      tags: [Authentication]
+      summary: Log out
+      operationId: logoutUser
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Session ended successfully
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/expenses/:
+    get:
+      tags: [Expenses]
+      summary: List the current user's expenses
+      operationId: listExpenses
+      security:
+        - cookieAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of newest expenses to return. Used by the dashboard.
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            example: 5
+      responses:
+        '200':
+          description: Owner-scoped expense list, newest first
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Expense'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Expenses]
+      summary: Create an expense
+      operationId: createExpense
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateExpenseRequest'
+            examples:
+              equal:
+                summary: Equal split
+                value:
+                  title: Weekend cabin
+                  total: '90.00'
+                  date: '2026-09-14'
+                  note: Groceries and firewood
+                  splitType: equal
+                  payer: Anna
+                  participants:
+                    - name: Anna
+                    - name: Bob
+                    - name: Chris
+              custom:
+                summary: Custom split
+                value:
+                  title: Dinner at Luigi's
+                  total: '100.00'
+                  date: '2026-09-14'
+                  splitType: custom
+                  payer: Anna
+                  participants:
+                    - name: Anna
+                      share: '50.00'
+                    - name: Bob
+                      share: '30.00'
+                    - name: Chris
+                      share: '20.00'
+      responses:
+        '201':
+          description: Expense saved and calculated result returned
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/expenses/{expenseId}/:
+    parameters:
+      - $ref: '#/components/parameters/ExpenseId'
+    get:
+      tags: [Expenses]
+      summary: Get an expense
+      operationId: getExpense
+      description: Returns an expense only when it belongs to the authenticated user.
+      security:
+        - cookieAuth: []
+      responses:
+        '200':
+          description: Expense detail and split result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Expense'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Expenses]
+      summary: Delete an expense
+      operationId: deleteExpense
+      description: Deletes an expense only when it belongs to the authenticated user. Editing is not supported.
+      security:
+        - cookieAuth: []
+      parameters:
+        - $ref: '#/components/parameters/CsrfHeader'
+      responses:
+        '204':
+          description: Expense and its participants deleted
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: sessionid
+      description: Django session cookie established by login or registration.
+
+  parameters:
+    CsrfHeader:
+      name: X-CSRFToken
+      in: header
+      required: true
+      description: Django CSRF token required for state-changing requests.
+      schema:
+        type: string
+    ExpenseId:
+      name: expenseId
+      in: path
+      required: true
+      description: Expense primary key.
+      schema:
+        type: string
+        example: 6f4b9a9e-6c93-4ff2-96b8-72a651f6b6a4
+
+  schemas:
+    UserSummary:
+      type: object
+      required: [username, name]
+      properties:
+        username:
+          type: string
+          example: maya
+        name:
+          type: string
+          example: Maya Chen
+
+    RegisterRequest:
+      type: object
+      required: [username, password, name]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 150
+          example: maya
+        password:
+          type: string
+          format: password
+          minLength: 1
+          example: secret-password
+        name:
+          type: string
+          minLength: 1
+          maxLength: 150
+          example: Maya Chen
+
+    LoginRequest:
+      type: object
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          example: maya
+        password:
+          type: string
+          format: password
+          example: secret-password
+
+    ParticipantInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: Anna
+        share:
+          type: string
+          pattern: '^\\d+(\\.\\d{1,2})?$'
+          description: Required for custom splits; ignored and recalculated for equal splits.
+          example: '30.00'
+
+    Participant:
+      allOf:
+        - $ref: '#/components/schemas/ParticipantInput'
+        - type: object
+          required: [share, isPayer]
+          properties:
+            share:
+              type: string
+              pattern: '^\\d+(\\.\\d{1,2})?$'
+              example: '30.00'
+            isPayer:
+              type: boolean
+              example: false
+
+    CreateExpenseRequest:
+      type: object
+      required: [title, total, date, splitType, payer, participants]
+      properties:
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+          example: Dinner at Luigi's
+        total:
+          type: string
+          pattern: '^\\d+(\\.\\d{1,2})?$'
+          description: Positive EUR amount with at most two decimal places.
+          example: '100.00'
+        date:
+          type: string
+          format: date
+          example: '2026-09-14'
+        note:
+          type: string
+          nullable: true
+          example: Optional context
+        splitType:
+          type: string
+          enum: [equal, custom]
+          example: custom
+        payer:
+          type: string
+          minLength: 1
+          example: Anna
+        participants:
+          type: array
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/ParticipantInput'
+
+    Expense:
+      type: object
+      required: [id, title, total, date, note, splitType, payer, participants, createdAt]
+      properties:
+        id:
+          type: string
+          example: 6f4b9a9e-6c93-4ff2-96b8-72a651f6b6a4
+        title:
+          type: string
+          example: Weekend cabin
+        total:
+          type: string
+          example: '240.00'
+        date:
+          type: string
+          format: date
+          example: '2026-09-12'
+        note:
+          type: string
+          nullable: true
+          example: Groceries and firewood
+        splitType:
+          type: string
+          enum: [equal, custom]
+        payer:
+          type: string
+          example: Maya
+        participants:
+          type: array
+          minItems: 2
+          items:
+            $ref: '#/components/schemas/Participant'
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-09-12T10:00:00Z'
+
+    ErrorResponse:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+          example: Please correct the highlighted fields.
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+          example:
+            username: [A user with that username already exists.]
+
+  responses:
+    ValidationError:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Unauthorized:
+      description: Authentication is required.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: Authentication credentials were not provided.
+    Forbidden:
+      description: Request is not allowed, commonly because of a missing or invalid CSRF token.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource does not exist or belongs to another user.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            detail: Expense not found.
